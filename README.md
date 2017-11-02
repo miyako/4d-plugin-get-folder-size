@@ -34,7 +34,13 @@ stop|BOOL|``true`` to abort
 
 There are several ways to measure a file's size. 
 
-On macOS, the [``NSURLTotalFileSizeKey``](https://developer.apple.com/documentation/foundation/nsurlresourcekey?language=objc) is used.
+* macOS,
+
+[``NSURLTotalFileSizeKey``](https://developer.apple.com/documentation/foundation/nsurlresourcekey?language=objc) is used.
+
+This is basically the number of bytes you see in Finder "Get Info".
+
+[``NSDirectoryEnumerationOptions``](https://developer.apple.com/documentation/foundation/nsdirectoryenumerationoptions?language=objc) is not used. In otherwords, it descend into directories, it descend into packages and it enumerates hidden files.
 
 The plugin yields to 4D every ``0x2000`` items. That's ``8192`` folders and files.
 

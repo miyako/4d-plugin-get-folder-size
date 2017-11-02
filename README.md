@@ -36,7 +36,7 @@ stop|BOOL|``true`` to abort
 
 There are several ways to traverse a directory tree.
 
-The plugins uses ``<filesystem>`` (MSVC, not ``boost``).
+The plugins uses [``<filesystem>``](https://msdn.microsoft.com/en-us/library/hh874694.aspx) (MSVC, not ``boost``) [``file_size``](https://msdn.microsoft.com/en-us/library/hh874829.aspx).
 
 This is basically the number of bytes you see in Explorer "Size" property, not "Size on disk".
 

@@ -29,3 +29,9 @@ Parameter|Type|Description
 ------------|------------|----
 size|REAL|
 stop|BOOL|``true`` to abort
+
+## Discussion
+
+There are several ways to measure a file's size. 
+
+On macOS, the [``NSURLTotalFileSizeKey``](https://developer.apple.com/documentation/foundation/nsurlresourcekey?language=objc) is used.

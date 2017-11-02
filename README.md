@@ -32,9 +32,15 @@ stop|BOOL|``true`` to abort
 
 ## Discussion
 
-There are several ways to measure a file's size. 
+* Windows
 
-* macOS,
+There are several ways to traverse a directory tree.
+
+The plugins uses ``<filesystem>`` (MSVC, not ``boost``).
+
+* macOS
+
+There are several ways to measure a file's size. 
 
 [``NSURLTotalFileSizeKey``](https://developer.apple.com/documentation/foundation/nsurlresourcekey?language=objc) is used.
 

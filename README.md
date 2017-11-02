@@ -38,6 +38,8 @@ There are several ways to traverse a directory tree.
 
 The plugins uses ``<filesystem>`` (MSVC, not ``boost``).
 
+This is basically the number of bytes you see in Explorer "Size" property, not "Size on disk".
+
 * macOS
 
 There are several ways to measure a file's size. 

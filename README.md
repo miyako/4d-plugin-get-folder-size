@@ -45,3 +45,46 @@ This is basically the number of bytes you see in Finder "Get Info".
 The plugin yields to 4D every ``0x2000`` items. That's ``8192`` folders and files.
 
 If passed, it also executes the callback method.
+
+## Examples
+
+* Without callback
+
+```
+$path:="Macintosh HD:Users:miyako:Downloads:sample:"
+$size:=Get folder size ($path)
+```
+
+* With callback
+
+```
+$path:="Macintosh HD:Users:miyako:Downloads:sample:"
+
+PROGRESS:=Progress New 
+Progress SET PROGRESS (PROGRESS;-1)
+Progress SET BUTTON ENABLED (PROGRESS;True)
+Progress SET ON STOP METHOD (PROGRESS;"CB_STOP")
+
+<>STOP:=False
+
+$size:=Get folder size ($path;"CB")
+
+Progress QUIT (PROGRESS)
+```
+
+* ``CB``
+
+```
+C_REAL($1)  //size
+C_BOOLEAN($0)  //true to abort
+
+Progress SET TITLE (PROGRESS;String($1))
+
+$0:=<>STOP
+```
+
+* ``CB_STOP``
+
+```
+<>STOP:=True
+```

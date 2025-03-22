@@ -53,7 +53,7 @@ If passed, it also executes the callback method.
 
 * Without callback
 
-```
+```4d
 $path:="Macintosh HD:Users:miyako:Downloads:sample:"
 $size:=Get folder size ($path)
 ```

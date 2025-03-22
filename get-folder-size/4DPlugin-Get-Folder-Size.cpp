@@ -166,13 +166,13 @@ static double getFolderSize(std::wstring& rootFolder,
                                      PA_long32 methodId,
                                      PA_Variable* params)
 {
-    std::tr2::sys::path folderPath(rootFolder);
+    std::filesystem::path folderPath(rootFolder);
     
-    if (std::tr2::sys::exists(folderPath))
+    if (std::filesystem::exists(folderPath))
     {
-        std::tr2::sys::directory_iterator end_itr;
+        std::filesystem::directory_iterator end_itr;
         
-        for (std::tr2::sys::directory_iterator dirIte(rootFolder); dirIte != end_itr; ++dirIte)
+        for (std::filesystem::directory_iterator dirIte(rootFolder); dirIte != end_itr; ++dirIte)
         {
             if(PA_IsProcessDying())
             {
@@ -213,13 +213,13 @@ static double getFolderSize(std::wstring& rootFolder,
             
             }
 
-            std::tr2::sys::path filePath(std::tr2::sys::absolute(dirIte->path(), folderPath));
+            std::filesystem::path filePath(std::filesystem::weakly_canonical(folderPath / dirIte->path()));
             
             try
             {
-                if (!std::tr2::sys::is_directory(dirIte->status()))
+                if (!std::filesystem::is_directory(dirIte->status()))
                 {
-                    total += std::tr2::sys::file_size(filePath);
+                    total += std::filesystem::file_size(filePath);
                 }else
                 {
                     total = getFolderSize(filePath.wstring(), total, count, useMethod, methodId, params);

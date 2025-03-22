@@ -1,1 +1,5 @@
 get-folder-size/build/*
+get-folder-size/.vs/*
+get-folder-size/Objs/*
+get-folder-size/test/Plugins/Get Folder Size.bundle/Contents/Windows64/Get Folder Size.exp
+get-folder-size/test/Plugins/Get Folder Size.bundle/Contents/Windows64/Get Folder Size.lib

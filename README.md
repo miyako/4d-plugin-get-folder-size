@@ -1,19 +1,14 @@
+![version](https://img.shields.io/badge/version-20%2B-E23089)
+![platform](https://img.shields.io/static/v1?label=platform&message=mac-intel%20|%20mac-arm%20|%20win-64&color=blue)
+[![license](https://img.shields.io/github/license/miyako/4d-plugin-get-folder-size)](LICENSE)
+![downloads](https://img.shields.io/github/downloads/miyako/4d-plugin-get-folder-size/total)
+
 # 4d-plugin-get-folder-size
 Get total size of files inside folder
 
-### Platform
-
-| carbon | cocoa | win32 | win64 |
-|:------:|:-----:|:---------:|:---------:|
-|<img src="https://cloud.githubusercontent.com/assets/1725068/22371562/1b091f0a-e4db-11e6-8458-8653954a7cce.png" width="24" height="24" />|<img src="https://cloud.githubusercontent.com/assets/1725068/22371562/1b091f0a-e4db-11e6-8458-8653954a7cce.png" width="24" height="24" />|<img src="https://cloud.githubusercontent.com/assets/1725068/22371562/1b091f0a-e4db-11e6-8458-8653954a7cce.png" width="24" height="24" />|<img src="https://cloud.githubusercontent.com/assets/1725068/22371562/1b091f0a-e4db-11e6-8458-8653954a7cce.png" width="24" height="24" />|
-
-### Version
-
-<img src="https://cloud.githubusercontent.com/assets/1725068/18940649/21945000-8645-11e6-86ed-4a0f800e5a73.png" width="32" height="32" /> <img src="https://cloud.githubusercontent.com/assets/1725068/18940648/2192ddba-8645-11e6-864d-6d5692d55717.png" width="32" height="32" />
-
 ## Syntax
 
-```
+```4d
 size:=Get folder size(path{;method})
 ```
 
@@ -65,7 +60,7 @@ $size:=Get folder size ($path)
 
 * With callback
 
-```
+```4d
 $path:="Macintosh HD:Users:miyako:Downloads:sample:"
 
 PROGRESS:=Progress New 
@@ -82,7 +77,7 @@ Progress QUIT (PROGRESS)
 
 * ``CB``
 
-```
+```4d
 C_REAL($1)  //size
 C_BOOLEAN($0)  //true to abort
 
@@ -93,6 +88,6 @@ $0:=<>STOP
 
 * ``CB_STOP``
 
-```
+```4d
 <>STOP:=True
 ```

@@ -1,0 +1,25 @@
+{
+	"editors": [
+		{
+			"type": "method",
+			"id": 2147483644,
+			"previousTabType": "method",
+			"previousTabID": 2147483642,
+			"codeDescriptor": {
+				"type": 1,
+				"methodName": "update_manifest_json"
+			}
+		},
+		{
+			"type": "method",
+			"id": 2147483642,
+			"codeDescriptor": {
+				"type": 1,
+				"methodName": "generate_project"
+			}
+		},
+		{
+			"type": "explorer"
+		}
+	]
+}

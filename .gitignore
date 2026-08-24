@@ -5,3 +5,4 @@ get-folder-size/test/Plugins/Get Folder Size.bundle/Contents/Windows64/Get Folde
 get-folder-size/test/Plugins/Get Folder Size.bundle/Contents/Windows64/Get Folder Size.lib
 test/userPreferences.*
 test/Project/DerivedData/*
+build/*

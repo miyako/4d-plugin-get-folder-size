@@ -12,6 +12,10 @@
 
 #pragma mark -
 
+// 4D command ID used to invoke a callback identified only by name (no compiled
+// method id) -- kept as a named constant instead of a bare magic number.
+static const PA_long32 kExecuteMethodByNameCommandID = 1007;
+
 void PluginMain(PA_long32 selector, PA_PluginParameters params) {
     
 	try
@@ -83,48 +87,64 @@ void Get_folder_size(PA_PluginParameters _params) {
     
     BOOL aborted = NO;
 
-    while ((item = [folderEnumerator nextObject]) && (!aborted))
+    // Manual retain/release code (see the explicit -release calls below) with no
+    // enclosing @autoreleasepool leaks every autoreleased object created per
+    // iteration (the NSNumber from -getResourceValue:forKey:error:, plus whatever
+    // NSDirectoryEnumerator allocates internally) -- worse still if this command
+    // runs on a worker thread (it's declared threadSafe in manifest.json), since
+    // secondary threads have no autorelease pool at all unless one is created
+    // explicitly. An outer pool guarantees a pool exists regardless of thread;
+    // an inner pool drained once per entry bounds peak memory for very large
+    // trees instead of every autoreleased object accumulating for the whole
+    // traversal.
+    @autoreleasepool
     {
-        NSNumber *totalFileSize = nil;
-        if([item getResourceValue:&totalFileSize forKey:NSURLTotalFileSizeKey error:nil])
+        while ((item = [folderEnumerator nextObject]) && (!aborted))
         {
-            total += [totalFileSize doubleValue];
-        }
-        
-        if(PA_IsProcessDying())
-        {
-            total = 0;
-            aborted = YES;
-        }else
-        {
-            //breathe every 8192 items
-            if(((++count) % 0x2000)==0)
+            @autoreleasepool
             {
-                PA_YieldAbsolute();
-                
-                if(useMethod)
+                NSNumber *totalFileSize = nil;
+                if([item getResourceValue:&totalFileSize forKey:NSURLTotalFileSizeKey error:nil])
                 {
-                    if(methodId)
+                    total += [totalFileSize doubleValue];
+                }
+
+                if(PA_IsProcessDying())
+                {
+                    total = 0;
+                    aborted = YES;
+                }else
+                {
+                    //breathe every 8192 items
+                    if(((++count) % 0x2000)==0)
                     {
-                        PA_SetRealVariable(&params[0], total);
-                        PA_Variable ret = PA_ExecuteMethodByID(methodId, params, 1);
-                        if(PA_GetVariableKind(ret) == eVK_Boolean)
+                        PA_YieldAbsolute();
+
+                        if(useMethod)
                         {
-                            if(PA_GetBooleanVariable(ret))
+                            if(methodId)
                             {
-                                total = 0;
-                                aborted = YES;
+                                PA_SetRealVariable(&params[0], total);
+                                PA_Variable ret = PA_ExecuteMethodByID(methodId, params, 1);
+                                if(PA_GetVariableKind(ret) == eVK_Boolean)
+                                {
+                                    if(PA_GetBooleanVariable(ret))
+                                    {
+                                        total = 0;
+                                        aborted = YES;
+                                    }
+                                }
+                            }else
+                            {
+                                //could be shared method
+                                PA_SetRealVariable(&params[2], total);
+                                PA_ExecuteCommandByID(kExecuteMethodByNameCommandID, params, 3);
+                                if(PA_GetBooleanVariable(params[1]))
+                                {
+                                    total = 0;
+                                    aborted = YES;
+                                }
                             }
-                        }
-                    }else
-                    {
-                        //could be shared method
-                        PA_SetRealVariable(&params[2], total);
-                        PA_ExecuteCommandByID(1007, params, 3);
-                        if(PA_GetBooleanVariable(params[1]))
-                        {
-                            total = 0;
-                            aborted = YES;
                         }
                     }
                 }
@@ -167,12 +187,21 @@ static double getFolderSize(std::wstring& rootFolder,
                                      PA_Variable* params)
 {
     std::filesystem::path folderPath(rootFolder);
-    
-    if (std::filesystem::exists(folderPath))
+
+    // Use the non-throwing overloads (error_code out-param) for both the
+    // existence check and the iterator construction. Previously the iterator
+    // constructor could throw between the exists() check and the loop (e.g. the
+    // folder is deleted or a permission changes in that window); that exception
+    // was not caught anywhere in this function and would propagate all the way
+    // up to PluginMain's empty `catch(...)`, silently skipping
+    // returnValue.setReturn(pResult) and leaving the 4D result uninitialized.
+    std::error_code ec;
+    if (std::filesystem::exists(folderPath, ec))
     {
         std::filesystem::directory_iterator end_itr;
-        
-        for (std::filesystem::directory_iterator dirIte(rootFolder); dirIte != end_itr; ++dirIte)
+        std::filesystem::directory_iterator dirIte(rootFolder, ec);
+
+        for (; !ec && dirIte != end_itr; dirIte.increment(ec))
         {
             if(PA_IsProcessDying())
             {
@@ -202,7 +231,7 @@ static double getFolderSize(std::wstring& rootFolder,
                     {
                         //could be shared method
                         PA_SetRealVariable(&params[2], total);
-                        PA_ExecuteCommandByID(1007, params, 3);
+                        PA_ExecuteCommandByID(kExecuteMethodByNameCommandID, params, 3);
                         if(PA_GetBooleanVariable(params[1]))
                         {
                             total = 0;
@@ -213,8 +242,16 @@ static double getFolderSize(std::wstring& rootFolder,
             
             }
 
-            std::filesystem::path filePath(std::filesystem::weakly_canonical(folderPath / dirIte->path()));
-            
+            // dirIte was constructed from rootFolder, so dirIte->path() is already
+            // the full absolute path of this entry (rootFolder/entry). Appending
+            // it onto folderPath via operator/ was a no-op (per std::filesystem
+            // rules, operator/ with an absolute right-hand side discards the
+            // left-hand side entirely), and weakly_canonical() then performed an
+            // extra, unnecessary filesystem round-trip (symlink/`.`/`..`
+            // resolution) per entry -- a real cost on large trees. Use the path
+            // the iterator already gives us.
+            std::filesystem::path filePath(dirIte->path());
+
             try
             {
                 if (!std::filesystem::is_directory(dirIte->status()))
@@ -261,6 +298,13 @@ void Get_folder_size(PA_PluginParameters _params) {
 
     double total = 0;
     PA_ulong64 count = 0;
+
+    // Set a default result up front: getFolderSize() no longer lets a
+    // directory_iterator construction failure throw out of this function (see
+    // above), but this remains a safe fallback in case any future edit
+    // reintroduces a code path that can throw before setReturn() below runs.
+    returnValue.setDoubleValue(total);
+    returnValue.setReturn(pResult);
 
     //prepare callback params
     PA_Variable    params[3];

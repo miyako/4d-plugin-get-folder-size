@@ -15,6 +15,108 @@ Command | Returns | Purpose
 
 **Platforms:** macOS (Intel & Apple Silicon) · Windows (64-bit)
 
+## Manual source bumps and publication
+
+Run **Bump version** from Actions on the explicitly selected branch, choosing
+`patch`, `minor`, or `major`. It validates source metadata, creates one direct-child
+source-only commit, and pushes only that branch without force or followed tags.
+The advertised-SHA pre-push guard is mandatory and executable; a moved, deleted,
+rewound, or already-updated branch rejects the bump. Generated commits include
+the Copilot App co-author trailer. Bump creates no tag, release, or Build run.
+
+Run **Build** separately on the branch containing the desired source version.
+Build has no inputs beyond GitHub's branch selector. Every job checks out the
+immutable selected `github.sha`; it derives `vX.Y.Z`, `Get Folder Size-X.Y.Z.zip`,
+and `Get Folder Size-X.Y.Z.dmg` from validated source, not a supplied tag.
+All branches share one non-cancelling publication concurrency group. Existing
+Windows x64 MSBuild v143/SDK 10 and macOS universal Xcode Default/deployment 11.0
+builds, resources, artifact transfer, Developer ID signing, notarization and DMG
+stapling remain required. Native tools and signing are not used by the local
+regression suite.
+
+Narrow native safety corrections address the original workflow's observable
+failure modes: its recursive first-match `.4DX` lookup could select a stale
+binary, whereas the actual `.vcxproj` declares the exact
+`test/plugins/Get Folder Size.bundle/contents/windows64` output. Fresh builds
+now use that exact output and the exact transferred artifact. Cleanup
+invalidates Mac products without deleting committed bundle resources or the
+Windows payload. The original two `lipo` substring checks allowed extra
+architectures; the gate now requires exactly arm64 and x86_64. Notarization
+requires explicit JSON `Accepted` status before stapling or publication.
+Closed-PATH native-command stubs and PowerShell fixtures exercise these gates
+without running native tools.
+
+Both before building and after all build/sign/notarize/staple gates, publication
+requires an absent exact remote tag and an authenticated, fully validated,
+paginated releases listing (including drafts). API/authentication/network errors,
+including 404s or malformed later pages, stop publication. It then performs
+create-only POSTs: a new tag ref at the selected SHA, verified remotely; a new
+public, non-prerelease release named for the tag with the original empty body;
+and assets uploaded only to that newly returned release ID. It never reuses,
+updates, deletes, clobbers, rolls back, or retries remote release state.
+
+**Recovery:** failures retain any created tag, release, and uploaded assets.
+Inspect the failed run and remote state before taking manual action. Do not
+rerun expecting the workflow to repair a partial release: the same version
+must fail closed once its tag or release exists. A maintainer must decide how
+to handle retained state; normal subsequent publication requires a separately
+reviewed source bump and a new manual Build.
+
+### Version authority and migration evidence
+
+The original `bump-version.yml` header at `9d3c7e8` explicitly promises to
+coordinate **MARKETING_VERSION, CURRENT_PROJECT_VERSION, and both plist version
+keys**. Its body incorrectly edits only the marketing-first selected key.
+Rename-follow history identifies `f289ab3759f0b95513dbc6478fae92cbd202489b`
+as the later coordinated promise: it added all six paired Xcode settings at
+1.0.2 and synced the source plist. This supersedes the older marketing-first,
+current-only-fallback header introduced at `e52ffda10e83499cfe62e1768c790dff1c960ce2`.
+Marketing-first fallback alone would preserve an independent build number,
+even if equal to marketing; it is the explicit later promise, not equality,
+that establishes coordination here.
+
+At intake, all six marketing settings and source `Info.plist` already say
+**1.0.4**. Only proven stale metadata is repaired to that existing authority:
+six build settings from 1.0.2, and the copied source
+`English.lproj/InfoPlist.strings` display/info versions from 1.0.0. There is no
+intake version increment. The source plist has no `CFBundleVersion`; it remains
+absent. Xcode's actual Resources phase copies the English localization, and its
+Copy Files phase copies `manifest.json` and `constants.xlf`.
+
+The source helper preserves supported Xcode references, optional absent keys,
+quotes, BOM, individual LF/CRLF/CR endings, modes, copyright and unrelated
+bytes. It rejects unresolved/cyclic references, duplicate plist/localized keys
+(including quoted and inline localized duplicates), drift and unsupported
+serialization before writing. Built localization may be UTF-16 or a compiled
+plist. Prebuilt bundles/archives, dependencies, 4D data/schema and counters are
+never version authorities or bump targets.
+
+The exact committed prior art was retrieved and adapted from:
+
+- `miyako/4d-plugin-native-encoding-detection@c42ca565857f674bde5ea6ed3435c87375eda4a7`:
+  coordinated six-configuration contract, strict localized tokenizer,
+  advertised-SHA push guard and fail-closed create-only publication.
+- `miyako/4d-plugin-file-information@19848973601acfd3a2b5070230fa40cdc7e4edb2`:
+  coordinated three-configuration comparison, UTF-16/binary built localization
+  and explicit rejection of extra architectures (including i386).
+- `miyako/4d-plugin-common-string-algorithm@2606a68201866ec9fcbb38b51462d79215f504ef`
+  and `miyako/4d-plugin-window-button@3f14facb9aaaaff0e22eeb8e07531163680c3a8a`:
+  independent-build comparisons; their marketing-first contracts are not
+  incorrectly imposed on this explicitly coordinated project.
+
+The original release triggers were a `v*.*.*` tag push and a manual required
+`tag` input; the original bump was manual patch/minor/major. They are replaced
+only by the two manual operations described above. Neither original workflow
+had an intentional branch restriction or unrelated CI trigger to retain.
+The repository API default and symbolic remote HEAD both identify `master`.
+
+Local regression commands:
+
+```sh
+actionlint
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s .github/tests -v
+```
+
 ---
 
 ## Requirements & platform notes

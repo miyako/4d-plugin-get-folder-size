@@ -76,7 +76,7 @@ void Get_folder_size(PA_PluginParameters _params) {
             params[0] = PA_CreateVariable(eVK_Real);
         }else
         {
-            params[0] = PA_CreateVariable(eVK_Unistring);
+            params[0] = PA_CreateVariable(eVK_Undefined);
             PA_Unistring methodName = PA_CreateUnistring((PA_Unichar *)Param2_method.getUTF16StringPtr());
             PA_SetStringVariable(&params[0], &methodName);
             params[1] = PA_CreateVariable(eVK_Boolean);
@@ -126,19 +126,20 @@ void Get_folder_size(PA_PluginParameters _params) {
                             {
                                 PA_SetRealVariable(&params[0], total);
                                 PA_Variable ret = PA_ExecuteMethodByID(methodId, params, 1);
-                                if(PA_GetVariableKind(ret) == eVK_Boolean)
+                                BOOL stop = PA_GetVariableKind(ret) == eVK_Boolean &&
+                                            PA_GetBooleanVariable(ret);
+                                PA_ClearVariable(&ret);
+                                if(stop)
                                 {
-                                    if(PA_GetBooleanVariable(ret))
-                                    {
-                                        total = 0;
-                                        aborted = YES;
-                                    }
+                                    total = 0;
+                                    aborted = YES;
                                 }
                             }else
                             {
                                 //could be shared method
                                 PA_SetRealVariable(&params[2], total);
-                                PA_ExecuteCommandByID(kExecuteMethodByNameCommandID, params, 3);
+                                PA_Variable ret = PA_ExecuteCommandByID(kExecuteMethodByNameCommandID, params, 3);
+                                PA_ClearVariable(&ret);
                                 if(PA_GetBooleanVariable(params[1]))
                                 {
                                     total = 0;
@@ -219,19 +220,20 @@ static double getFolderSize(std::wstring& rootFolder,
                     {
                         PA_SetRealVariable(&params[0], total);
                         PA_Variable ret = PA_ExecuteMethodByID(methodId, params, 1);
-                        if(PA_GetVariableKind(ret) == eVK_Boolean)
+                        BOOL stop = PA_GetVariableKind(ret) == eVK_Boolean &&
+                                    PA_GetBooleanVariable(ret);
+                        PA_ClearVariable(&ret);
+                        if(stop)
                         {
-                            if(PA_GetBooleanVariable(ret))
-                            {
-                                total = 0;
-                                break;
-                            }
+                            total = 0;
+                            break;
                         }
                     }else
                     {
                         //could be shared method
                         PA_SetRealVariable(&params[2], total);
-                        PA_ExecuteCommandByID(kExecuteMethodByNameCommandID, params, 3);
+                        PA_Variable ret = PA_ExecuteCommandByID(kExecuteMethodByNameCommandID, params, 3);
+                        PA_ClearVariable(&ret);
                         if(PA_GetBooleanVariable(params[1]))
                         {
                             total = 0;
@@ -315,7 +317,7 @@ void Get_folder_size(PA_PluginParameters _params) {
             params[0] = PA_CreateVariable(eVK_Real);
         }else
         {
-            params[0] = PA_CreateVariable(eVK_Unistring);
+            params[0] = PA_CreateVariable(eVK_Undefined);
             PA_Unistring methodName = PA_CreateUnistring((PA_Unichar *)Param2_method.getUTF16StringPtr());
             PA_SetStringVariable(&params[0], &methodName);
             params[1] = PA_CreateVariable(eVK_Boolean);

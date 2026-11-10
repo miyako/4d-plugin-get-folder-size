@@ -117,6 +117,74 @@ actionlint
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s .github/tests -v
 ```
 
+### SDK string ownership
+
+The ownership audit starts at `35f57f65f86c86d26345faecbd234fca314ff385`.
+Both native projects compile the same bundled `4DPluginAPI.c` (header comment
+`rev : v14`, API header `v13`; no independently verified upstream release).
+Its SHA-256 is
+`5bac571c5c4cafd280fa7f23d775458a23701287e8735be27d4a2190002f4e3f`.
+Guidance was checked against `miyako/skills` PRs 69 and 71, through commit
+`e6b492fcb81e5e1a7f7db723594b420e63bf6eb9`.
+
+The source and bundled test manifests expose only selector 1,
+`Get folder size(&T;&T):8`, with two scalar text inputs and a Real result;
+there are no `&Y` array commands. `PluginMain` dispatches that selector to
+`Get_folder_size`. Xcode and Visual Studio compile only that command,
+`C_TEXT.cpp`, `C_REAL.cpp`, and the SDK. `support/4DPlugin-JSON.cpp`,
+`ARRAY_TEXT.cpp`, `C_BLOB.cpp`, and `C_LONGINT.cpp` are dormant helpers, not
+additional exposed commands. JsonCpp headers/libraries are third-party code.
+
+The bundled SDK establishes the following contracts (baseline line numbers):
+
+| API | Evidence and cleanup |
+|---|---|
+| `PA_CreateVariable(eVK_Unistring)` | Line 4030 calls `PA_CreateUnistring` for an empty string, which can own an allocation. |
+| `PA_SetStringVariable` | Lines 4254-4259 shallow-assign the string without releasing the previous payload. Initialize a payload-free variable before assigning a new owner. |
+| `PA_ExecuteMethodByID` | Lines 5710-5751 return the method result without clearing it; inspect it, then clear it before disposing callback arguments. Direct callbacks here take only a Real, so no string argument aliases the returned owner. |
+| `PA_GetObjectProperty` | Lines 636-651 explicitly require clearing the returned variable. Copy scalar/text content before clearing; preserve a matching collection reference handed to the caller. |
+| `PA_SetStringInArray` / `PA_GetStringInArray` | Lines 4933-4948 transfer on an accepted destination after disposing the old element; lines 4736-4755 return a borrowed alias. `ARRAY_TEXT` copies input content and transfers separately allocated output strings without post-transfer disposal. |
+| `PA_SetUnistring` / `PA_ReturnString` | Lines 289-299 / 2600-2603 use the engine content setter, not scalar/array struct transfer. `C_TEXT` uses that content setter; its C++ backing strings remain independent. |
+
+Both callback branches now avoid overwriting an allocated empty method-name
+owner and clear callback results, including ignored non-Boolean results.
+Final callback argument cleanup remains intact. Dormant JSON string setters
+avoid the same initial overwrite; its picture setter also avoids overwriting
+an initially allocated empty picture (`PA_SetPictureVariable`, lines
+4280-4285, shallow-assigns too). JSON getters release copied or mismatched
+property results; a matching collection remains a caller-owned handoff.
+There is no first-party `PA_GetPointerValue` call site, and that SDK helper's
+special metadata lifetime is not changed. No SDK code, public command,
+iterator/QUIT lifecycle, or generic allocation-failure policy is changed.
+Array allocation/resize failure recovery is not certified by this audit.
+
+Run the narrow regression on macOS with:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 .github/tests/test_ownership.py -v
+```
+
+It compiles the actual command, dormant JSON/array sources and **full,
+unmodified SDK**, replacing only the engine callback. The tracking engine
+checks each string/handle/picture/reference owner, shallow transfers and
+borrowed reads. ASan and UBSan are enabled; explicit owner accounting is used
+instead of LeakSanitizer (`detect_leaks=0`, unsupported on this macOS setup).
+The command traverses 16,384 real one-byte files, checking two callbacks,
+normal completion, Boolean abort, process death, no callback and ignored
+text/object/collection results. Named callbacks verify the exact method name.
+Setter/getter checks cover ASCII, BMP and surrogate-pair content, UTF-16
+lengths/terminators, empty values, allocated/null empty models, replacements,
+array shrink/clear and rejected type/index/null-data insertions. Conversion
+uses the real CoreFoundation implementation, not a byte/unit conversion mock.
+
+Against the baseline source, seven of ten empty-model subcases fail with
+unreleased string/picture owners; null-empty named callbacks and both
+array-contract subcases already pass. All subcases pass after the correction.
+This is macOS arm64 engine-shim evidence, **not an actual 4D-host run or a
+Windows runtime reproduction**; the Windows branch received the corresponding
+source corrections but was not compiled here. No signing, notarization,
+Deployment build, packaging or publication is used by this regression.
+
 ---
 
 ## Requirements & platform notes
